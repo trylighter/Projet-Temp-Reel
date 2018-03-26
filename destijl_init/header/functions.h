@@ -66,6 +66,9 @@ void f_receiveFromMon(void *arg);
 void f_openComRobot(void * arg);
 void f_move(void *arg);
 void f_startRobot(void *arg);
+void f_batterie(void *arg);
+void f_watchComServer(void *arg);
+void f_watchComRobot(void *arg);
 
 #endif /* FUNCTIONS_H */
 

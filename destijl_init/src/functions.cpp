@@ -1,6 +1,7 @@
 #include "../header/functions.h"
 
 char mode_start;
+int compteur;
 
 void write_in_queue(RT_QUEUE *, MessageToMon);
 
@@ -50,7 +51,11 @@ void f_sendToMon(void * arg) {
             printf("%s : message {%s,%s} in queue\n", info.name, msg.header, msg.data);
 #endif
 
-            send_message_to_monitor(msg.header, msg.data);
+    
+            if(send_message_to_monitor(msg.header, msg.data)<0)
+            {
+                rt_sem_v(&sem_errS);
+            }
             free_msgToMon_data(&msg);
             rt_queue_free(&q_messageToMon, &msg);
         } else {
@@ -78,6 +83,10 @@ void f_receiveFromMon(void *arg) {
         printf("%s : waiting for a message from monitor\n", info.name);
 #endif
         err = receive_message_from_monitor(msg.header, msg.data);
+        if(err<0)
+        {
+            rt_sem_v(&sem_errR);
+        }
 #ifdef _WITH_TRACE_
         printf("%s: msg {header:%s,data=%s} received from UI\n", info.name, msg.header, msg.data);
 #endif
@@ -86,7 +95,8 @@ void f_receiveFromMon(void *arg) {
 #ifdef _WITH_TRACE_
                 printf("%s: message open Xbee communication\n", info.name);
 #endif
-                rt_sem_v(&sem_openComRobot);
+                //rt_sem_v(&sem_openComRobot);
+                rt_sem_broadcast(&sem_openComRobot);
             }
         } else if (strcmp(msg.header, HEADER_MTS_DMB_ORDER) == 0) {
             if (msg.data[0] == DMB_START_WITHOUT_WD) { // Start robot
@@ -184,14 +194,15 @@ void f_startRobot(void * arg) {
 }
 
 void f_move(void *arg) {
+ 
     /* INIT */
-    RT_TASK_INFO info;
+  /*  RT_TASK_INFO info;
     rt_task_inquire(NULL, &info);
     printf("Init %s\n", info.name);
-    rt_sem_p(&sem_barrier, TM_INFINITE);
+    rt_sem_p(&sem_barrier, TM_INFINITE);*/
 
-    /* PERIODIC START */
-#ifdef _WITH_TRACE_
+    // /* PERIODIC START */
+/*#ifdef _WITH_TRACE_
     printf("%s: start period\n", info.name);
 #endif
     rt_task_set_periodic(NULL, TM_NOW, 100000000);
@@ -214,8 +225,151 @@ void f_move(void *arg) {
 #endif            
         }
         rt_mutex_release(&mutex_robotStarted);
+    }*/
+}
+
+void f_batterie(void *arg){
+    printf("\n\nTest \n\n\n");
+    RT_TASK_INFO info;
+    printf("\n\nTest2 \n\n\n");
+    MessageToMon msg;
+    int niveau_bat = 2;
+    char message[10];
+    //message = malloc(sizeof(char)*10);
+    printf("\n\nTest3 \n\n\n");
+    rt_task_inquire(NULL, &info);
+    printf("\n\nInit %s\n\n\n", info.name);
+    rt_sem_p(&sem_barrier, TM_INFINITE);
+    printf("\nEntree dans le while\n\n\n");
+    rt_task_set_periodic(NULL, TM_NOW, 500000000);
+    
+    while(1)
+    {
+        // Timer Période
+        rt_task_wait_period(NULL);
+        rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE); 
+        if(robotStarted == 1){
+            //Envoi du message :
+
+            niveau_bat = send_command_to_robot(DMB_GET_VBAT); 
+            if(niveau_bat < 0)
+            {
+                rt_sem_p(&sem_pbComm,TM_INFINITE);
+            }
+            else
+            {
+                rt_mutex_acquire(&mutex_compteur, TM_INFINITE);
+                compteur = 0;
+                rt_mutex_release(&mutex_compteur);
+            }
+            sprintf(message,"%d",niveau_bat);
+            //printf("Niveau batterie : %d\n",niveau_bat);
+            //fflush(stdout);    
+
+
+            set_msgToMon_header(&msg, HEADER_STM_BAT);
+            set_msgToMon_data(&msg, (void *) message);
+            //write_in_queue(&q_messageToMon, msg);
+            if(send_message_to_monitor(msg.header, msg.data)<0)
+            {
+                rt_sem_v(&sem_errS);
+            }
+        }
+        else {
+            //printf("Robot not started\n");
+        }
+        rt_mutex_release(&mutex_robotStarted);
+    }
+    
+}
+
+void f_watchComServer(void *arg)
+{
+    rt_sem_p(&sem_barrier, TM_INFINITE);
+    rt_sem_p(&sem_errS, TM_INFINITE);
+    rt_sem_p(&sem_errR, TM_INFINITE);
+    printf("Connexion perdue");
+    rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
+    robotStarted = 0;
+    rt_mutex_release(&mutex_robotStarted);
+    rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+    mode_camera = 0;
+    rt_mutex_release(&mutex_camera);
+    printf("Connexion perdue \n");
+    close_server();
+    kill_nodejs();   
+}
+
+
+/*void f_watchDog(void *arg)
+{
+    MessageToMon msg;
+    int compteur;
+    RT_TASK_INFO info;
+    rt_task_inquire(NULL, &info);
+    rt_sem_p(&sem_barrier, TM_INFINITE);
+    printf("Prddzdzdz \n");
+    rt_task_set_periodic(NULL, TM_NOW, 100000000);
+    while(1)
+    {
+        rt_sem_p(&sem_startwithWD,TM_INFINITE);
+        printf("Prob \n");
+        rt_task_wait_period(NULL);
+        compteur=0;
+            while(compteur<4)
+            {
+                rt_task_wait_period(NULL);
+                printf("ProbProb \n");
+                rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE); 
+                if(robotStarted == 1){
+                    if(send_command_to_robot(DMB_RELOAD_WD)!=ROBOT_OK)
+                    {
+                        compteur++;
+                    }
+                }
+                else
+                {
+                    compteur = 0;
+                }
+                rt_mutex_release(&mutex_robotStarted);
+            }
+        
+    // set_msgToMon_header(&msg, HEADER_STM_LOST_DMB);
+     if(send_message_to_monitor(msg.header,NULL)<0)
+     {
+         rt_sem_v(&sem_errS);
+     }
+     printf("ProbProbClaMerde \n");
+     //close_communication_robot();
+    }
+}*/
+void f_watchComRobot(void *arg)
+{
+    MessageToMon msg;
+    RT_TASK_INFO info;
+    rt_sem_p(&sem_barrier, TM_INFINITE);
+    rt_task_inquire(NULL, &info);
+    while(1)
+    {
+        rt_mutex_acquire(&mutex_compteur, TM_INFINITE);
+        compteur =0;
+        rt_mutex_release(&mutex_compteur);
+        while(compteur<4)
+        {
+            rt_sem_p(&sem_pbComm,TM_INFINITE);
+            rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE); 
+            if(robotStarted == 1)
+            {
+                rt_mutex_acquire(&mutex_compteur, TM_INFINITE);
+                compteur++;
+                rt_mutex_release(&mutex_compteur);
+            }
+            rt_mutex_release(&mutex_robotStarted);
+        }
+        printf("ProbProbClaMerde \n");
     }
 }
+
 
 void write_in_queue(RT_QUEUE *queue, MessageToMon msg) {
     void *buff;

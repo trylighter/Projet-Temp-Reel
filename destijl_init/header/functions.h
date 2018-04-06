@@ -49,9 +49,10 @@ extern RT_SEM sem_barrier;
 extern RT_SEM sem_openComRobot;
 extern RT_SEM sem_serverOk;
 extern RT_SEM sem_startRobot;
+extern RT_SEM sem_startwithWD;
 extern RT_SEM sem_errS;
 extern RT_SEM sem_errR;
-extern RT_SEM sem_probComm;
+extern RT_SEM sem_pbComm;
 
 
 
@@ -73,6 +74,7 @@ extern int PRIORITY_TSTARTROBOT;
 extern int PRIORITY_TBATTERIE;
 extern int PRIORITY_TWATCHCOMSERVER;
 extern int PRIORITY_TWATCHCOMROBOT;
+extern int PRIORITY_TWATCHDOG;
 
 
 void f_server(void *arg);
@@ -84,6 +86,8 @@ void f_startRobot(void *arg);
 void f_batterie(void *arg);
 void f_watchComServer(void *arg);
 void f_watchComRobot(void *arg);
+void f_watchDog(void *arg);
 
 #endif /* FUNCTIONS_H */
+
 

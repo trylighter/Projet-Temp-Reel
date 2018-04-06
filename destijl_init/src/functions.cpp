@@ -1,7 +1,7 @@
 #include "../header/functions.h"
 
 char mode_start;
-int compteur;
+int compteur=0;
 
 void write_in_queue(RT_QUEUE *, MessageToMon);
 
@@ -118,6 +118,10 @@ void f_receiveFromMon(void *arg) {
                 printf("%s: message update movement with %c\n", info.name, move);
 #endif
 
+            }
+            else if(msg.data[0] == DMB_START_WITH_WD) {
+                rt_sem_v(&sem_startwithWD);
+                rt_sem_v(&sem_startRobot);
             }
         }
     } while (err > 0);
@@ -254,7 +258,7 @@ void f_batterie(void *arg){
             niveau_bat = send_command_to_robot(DMB_GET_VBAT); 
             if(niveau_bat < 0)
             {
-                rt_sem_p(&sem_pbComm,TM_INFINITE);
+                rt_sem_v(&sem_pbComm);
             }
             else
             {
@@ -301,13 +305,13 @@ void f_watchComServer(void *arg)
 }
 
 
-/*void f_watchDog(void *arg)
+void f_watchDog(void *arg)
 {
     MessageToMon msg;
-    int compteur;
+    int compteur_WD;
     RT_TASK_INFO info;
-    rt_task_inquire(NULL, &info);
     rt_sem_p(&sem_barrier, TM_INFINITE);
+    rt_task_inquire(NULL, &info);
     printf("Prddzdzdz \n");
     rt_task_set_periodic(NULL, TM_NOW, 100000000);
     while(1)
@@ -315,34 +319,34 @@ void f_watchComServer(void *arg)
         rt_sem_p(&sem_startwithWD,TM_INFINITE);
         printf("Prob \n");
         rt_task_wait_period(NULL);
-        compteur=0;
-            while(compteur<4)
+        compteur_WD=0;
+            while(compteur_WD<4)
             {
                 rt_task_wait_period(NULL);
-                printf("ProbProb \n");
+                //printf("ProbProb \n");
                 rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE); 
                 if(robotStarted == 1){
                     if(send_command_to_robot(DMB_RELOAD_WD)!=ROBOT_OK)
                     {
-                        compteur++;
+                        compteur_WD++;
                     }
                 }
                 else
                 {
-                    compteur = 0;
+                    compteur_WD = 0;
                 }
                 rt_mutex_release(&mutex_robotStarted);
             }
         
     // set_msgToMon_header(&msg, HEADER_STM_LOST_DMB);
-     if(send_message_to_monitor(msg.header,NULL)<0)
+   /*  if(send_message_to_monitor(msg.header,NULL)<0)
      {
          rt_sem_v(&sem_errS);
-     }
-     printf("ProbProbClaMerde \n");
+     }*/
+        printf("ProbWatchdog \n");
      //close_communication_robot();
     }
-}*/
+}
 void f_watchComRobot(void *arg)
 {
     MessageToMon msg;
@@ -357,6 +361,7 @@ void f_watchComRobot(void *arg)
         while(compteur<4)
         {
             rt_sem_p(&sem_pbComm,TM_INFINITE);
+            printf("ProbProb \n");
             rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE); 
             if(robotStarted == 1)
             {

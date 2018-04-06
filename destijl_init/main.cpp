@@ -1,4 +1,4 @@
-/* 
+* 
  * File:   main.c
  * Author: pehladik
  *
@@ -28,6 +28,7 @@ RT_TASK th_move;
 RT_TASK th_batterie;
 RT_TASK th_WatchComServer;
 RT_TASK th_WatchComRobot;
+RT_TASK th_watchDog;
 
 // Déclaration des priorités des taches
 int PRIORITY_TSERVER = 30;
@@ -39,6 +40,7 @@ int PRIORITY_TSTARTROBOT = 20;
 int PRIORITY_TBATTERIE = 12;
 int PRIORITY_TWATCHCOMSERVER = 9;
 int PRIORITY_TWATCHCOMROBOT =29;
+int PRIORITY_TWATCHDOG = 20;
 
 RT_MUTEX mutex_robotStarted;
 RT_MUTEX mutex_move;
@@ -52,8 +54,8 @@ RT_SEM sem_serverOk;
 RT_SEM sem_startRobot;
 RT_SEM sem_errS;
 RT_SEM sem_errR;
-RT_SEM sem_probComm;
-
+RT_SEM sem_pbComm;
+RT_SEM sem_startwithWD;
 // Déclaration des files de message
 RT_QUEUE q_messageToMon;
 
@@ -123,7 +125,11 @@ void initStruct(void) {
     }
 
     /* Creation du semaphore */
-    if (err = rt_sem_create(&sem_probComm, NULL, 0, S_FIFO)) {
+    if (err = rt_sem_create(&sem_startwithWD, NULL, 0, S_FIFO)) {
+        printf("Error semaphore create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_pbComm, NULL, 0, S_FIFO)) {
         printf("Error semaphore create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
@@ -190,7 +196,10 @@ void initStruct(void) {
         printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-    
+    if (err = rt_task_create(&th_watchDog, "th_watchDog", 0, PRIORITY_TWATCHDOG, 0)) {
+        printf("Error task create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
     /* Creation des files de messages */
     if (err = rt_queue_create(&q_messageToMon, "toto", MSG_QUEUE_SIZE * sizeof (MessageToRobot), MSG_QUEUE_SIZE, Q_FIFO)) {
         printf("Error msg queue create: %s\n", strerror(-err));
@@ -241,7 +250,10 @@ void startTasks() {
         printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }                  
-    
+    if (err = rt_task_start(&th_watchDog, &f_watchDog, NULL)) {
+        printf("Error task start: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }      
 
 }
 

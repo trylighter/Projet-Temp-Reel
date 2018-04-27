@@ -98,7 +98,7 @@ int send_message_to_monitor(const char* typeMessage, const void * data) {
     if ((string) typeMessage == HEADER_STM_IMAGE) {
         Jpg * imgC = (Jpg*) data;
         serverSend("IMG", 3);
-        serverSend(imgC->data(), imgC->size());
+        serverSend(imgC->data(),imgC->size());
         serverSend("TRAME", 5);
         return 0;
     } else if ((string) typeMessage == HEADER_STM_POS) {

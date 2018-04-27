@@ -32,7 +32,7 @@ void draw_arena(Image *imgInput, Image *imgOutput, Arene *monArene)
     rectangle(*imgOutput,monArene->tl(),monArene->br(),Scalar(0,0,125),2,8,0);
 }
 
-int open_camera(Camera  *camera)
+int open_camera(Camera *camera)
 {
 #ifndef __STUB__
     camera->set(CV_CAP_PROP_FORMAT, CV_8UC3);
